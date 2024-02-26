@@ -4,9 +4,9 @@ A descriptive analysis project to understand the listings available in different
 
 ## Data
 
-Data is extracted from [Inside Airbnb]("http://insideairbnb.com/) using data extracted on the city of Albany as of January 6, 2024
+Data is extracted from [Inside Airbnb]("http://insideairbnb.com/") using data extracted on the city of Albany as of January 6, 2024
 
 ## Acknowledgments
 
 Inspiration, code snippets, etc.
-* [Inside Airbnb]("http://insideairbnb.com/)
+* [Inside Airbnb]("http://insideairbnb.com/")
