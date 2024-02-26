@@ -1,0 +1,120 @@
+---
+title: "Airbnb Analysis"
+output: html_document
+date: "Last Compiled on `r format(Sys.time(), '%B %d, %Y')`"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+
+listings <- read.csv("listings.csv") %>%
+  mutate(last_scraped = as.Date(last_scraped, format('%Y-%m-%d')))
+```
+
+## Introduction
+
+This project serves to analyze the listings.csv file, which contains data on Albany's Airbnb listing as of `r format(max(listings$last_scraped), '%B %d, %Y')`.
+
+The analysis will explore the contents of the data, and hopefully will expand more towards the neighborhood, community, and city development of Albany due to these listings
+
+### What's In Here?
+
+```{r message=FALSE}
+
+summary(listings)
+
+```
+
+### Select Useful Columns
+
+```{r message=FALSE}
+
+listings_clean <- listings %>%
+  select(id, name, description, neighborhood_overview, host_name, host_since, host_location,
+         host_about, host_response_time, host_acceptance_rate, host_is_superhost,
+         host_neighbourhood, host_listings_count, host_total_listings_count,
+         host_verifications, host_has_profile_pic, host_identity_verified, 
+         neighbourhood, neighbourhood_cleansed, latitude,
+         longitude, property_type, room_type, accommodates, bathrooms, bathrooms_text,
+         bedrooms, beds, price, minimum_nights, maximum_nights, availability_30,
+         availability_60, availability_90, availability_365, number_of_reviews,
+         number_of_reviews_ltm, number_of_reviews_l30d, first_review, last_review,
+         review_scores_rating, review_scores_accuracy, review_scores_cleanliness,
+         review_scores_checkin, review_scores_communication, review_scores_location,
+         review_scores_value, reviews_per_month, instant_bookable)
+```
+
+### Listings Count by Neighborhood
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+
+listing_by_neighborhood <- listings_clean %>%
+  group_by(neighbourhood_cleansed) %>%
+  summarize(total_listings = n_distinct(id)) %>%
+  ungroup()
+
+ggplot(listing_by_neighborhood, aes(x = reorder(neighbourhood_cleansed, -total_listings), 
+                                    y = total_listings, fill = neighbourhood_cleansed)) +
+  geom_col() +
+  labs(x = "Neighborhood", y = "Total Unique Listings") +
+  theme(legend.position = "none",
+        axis.text.x = element_text(angle = 90))
+
+
+```
+
+
+### Distribution of Price by Neighborhood
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+
+price_by_neighborhood <- listings_clean %>%
+  mutate(price_per_night = as.numeric(gsub("\\$", "", price))) %>% # Remove dollar sign and convert to numeric
+  select(price_per_night, review_scores_rating, neighbourhood_cleansed) %>%
+  drop_na(price_per_night, review_scores_rating) # 7 NA values, tidyr library
+
+plot_distribution <- function(df, x_val, y_val){
+  
+  x_val <- enquo(x_val)
+  y_val <- enquo(y_val)
+  
+  p <- ggplot(df, aes(x = !!x_val, y = !!y_val)) +
+    geom_boxplot() +
+    geom_hline(aes(yintercept = mean(!!y_val)), df, linetype = 2, color = "red") +
+    theme(axis.text.x = element_text(angle = 90))
+  
+  print(p)
+
+}
+
+plot_distribution(price_by_neighborhood, neighbourhood_cleansed, price_per_night)
+
+
+```
+
+
+### Distribution of Review by Neighborhood
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+
+plot_distribution(price_by_neighborhood, neighbourhood_cleansed, review_scores_rating)
+
+```
+
+Looks like the 2nd and 12th Wards have a lower review than the average. Especially since 2nd Ward has the second highest unique listing. What's happening here?
+
+### Summary Statistics for Reviews in Second Ward
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+
+second_ward_reviews <- listings_clean %>%
+  filter(neighbourhood_cleansed == "SECOND WARD") %>%
+  select(review_scores_rating, review_scores_accuracy, review_scores_cleanliness, review_scores_checkin, review_scores_communication, review_scores_location, review_scores_value)
+
+summary(second_ward_reviews)
+
+```
