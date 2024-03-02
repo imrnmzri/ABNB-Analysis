@@ -45,8 +45,19 @@ listings_clean <- listings %>%
          number_of_reviews_ltm, number_of_reviews_l30d, first_review, last_review,
          review_scores_rating, review_scores_accuracy, review_scores_cleanliness,
          review_scores_checkin, review_scores_communication, review_scores_location,
-         review_scores_value, reviews_per_month, instant_bookable)
+         review_scores_value, reviews_per_month, instant_bookable) %>%
+  mutate(price_per_night = as.numeric(gsub("\\$", "", price))) # Remove dollar sign and convert to numeric
 ```
+
+### Listings Map by Neighborhood
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+
+ggplot(listings_clean, aes(longitude, latitude)) + 
+  geom_point(aes(color = listings_clean$neighbourhood_cleansed))
+
+```
+
 
 ### Listings Count by Neighborhood
 
@@ -73,7 +84,6 @@ ggplot(listing_by_neighborhood, aes(x = reorder(neighbourhood_cleansed, -total_l
 ```{r message=FALSE, warning=FALSE, echo=FALSE}
 
 price_by_neighborhood <- listings_clean %>%
-  mutate(price_per_night = as.numeric(gsub("\\$", "", price))) %>% # Remove dollar sign and convert to numeric
   select(price_per_night, review_scores_rating, neighbourhood_cleansed) %>%
   drop_na(price_per_night, review_scores_rating) # 7 NA values, tidyr library
 
@@ -105,7 +115,7 @@ plot_distribution(price_by_neighborhood, neighbourhood_cleansed, review_scores_r
 
 ```
 
-Looks like the 2nd and 12th Wards have a lower review than the average. Especially since 2nd Ward has the second highest unique listing. What's happening here?
+Looks like the 2nd and 12th Wards have a lower review than the average. Especially since 2nd Ward has the second highest unique listing. Given 2nd Ward has the second highest listing, let's look at 2nd Ward
 
 ### Summary Statistics for Reviews in Second Ward
 
@@ -118,3 +128,56 @@ second_ward_reviews <- listings_clean %>%
 summary(second_ward_reviews)
 
 ```
+
+### Average of Each Review Type on Second Ward, Compare to All other Wards
+
+```{R}
+
+mean_price_by_ward <- listings_clean %>%
+  select(neighbourhood_cleansed, review_scores_rating, review_scores_accuracy, review_scores_cleanliness, review_scores_checkin, review_scores_communication, review_scores_location, review_scores_value) %>%
+  pivot_longer(!neighbourhood_cleansed, names_to = "review_type", values_to = "score") %>%
+  group_by(neighbourhood_cleansed, review_type) %>%
+  summarize(mean_score = mean(score, na.rm = TRUE)) %>%
+  ungroup()
+
+mean_price_by_ward %>%
+  mutate(is_second_ward = ifelse(neighbourhood_cleansed == "SECOND WARD", "y", "n")) %>%
+  ggplot(aes(neighbourhood_cleansed, mean_score, fill = is_second_ward)) +
+  geom_col() +
+  facet_wrap(~review_type) +
+  scale_fill_manual(guide = "none", values = c("y" = "red", "n" = "gray")) +
+  theme(axis.text.x = element_blank())
+
+```
+
+### Does Price Affect Review? (Linear Regression)
+
+```{R}
+
+library(fastDummies)
+
+review_neighborhood <- listings_clean %>%
+  select(neighbourhood_cleansed, price_per_night, review_scores_rating) %>%
+  drop_na() %>%
+  dummy_cols() %>%
+  select(!neighbourhood_cleansed)
+
+model1 <- lm(review_scores_rating ~ price_per_night, data = review_neighborhood)
+
+summary(model1)
+
+model2 <- lm(review_scores_rating ~ price_per_night + `neighbourhood_cleansed_SECOND WARD`, data = review_neighborhood)
+
+summary(model2)
+
+```
+
+Not accounting for other variables, price per night does not affect ratings, however, not being in the Second Ward does affect the ratings by 0.14
+
+### Housing Price in Albany
+
+### Rent Price in Albany
+
+### Crime Rates in Albany
+
+### Relationship between Rent and Airbnb Listings
